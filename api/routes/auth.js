@@ -23,7 +23,7 @@ router.post(
 
     try {
       const [rows] = await pool.execute(
-        "SELECT id FROM users WHERE username = ?",
+        "SELECT id_user, password FROM users WHERE username = ?",
         [username]
       );
 
@@ -39,11 +39,11 @@ router.post(
         return res.status(401).json({ error: "Password is incorrect" });
       }
 
-      const token = generateToken(user.id);
+      const token = generateToken(user.id_user);
 
       return res.status(200).json({ token });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: error.message });
     }
   }
 );

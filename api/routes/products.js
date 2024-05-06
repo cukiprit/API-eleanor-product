@@ -34,8 +34,36 @@ const upload = multer({
 router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.execute("SELECT * FROM products");
-    // console.log(rows);
-    return res.status(200).json(rows);
+
+    const products = rows.map((product) => ({
+      ...product,
+      product_image: `http://localhost:3000/uploads/${product.product_image}`,
+    }));
+
+    return res.status(200).json({ products });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT * FROM products WHERE id_product = ?",
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No product found with that ID" });
+    }
+
+    const product = rows.map((product) => ({
+      ...product,
+      product_image: `http://localhost:3000/uploads/${product.product_image}`,
+    }));
+
+    return res.status(200).json({ product });
   } catch (error) {
     console.error(error.message);
     return res.status(500).json({ error: error.message });
@@ -87,5 +115,66 @@ router.post(
     }
   }
 );
+
+router.put(
+  "/:id",
+  verifyToken,
+  upload.single("product_image"),
+  [
+    body("product_name").optional().trim().escape(),
+    body("product_description").optional().trim().escape(),
+    body("product_price").optional().isNumeric().toFloat(),
+    body("product_stock").optional().isNumeric().toInt(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const {
+        product_name,
+        product_description,
+        product_price,
+        product_stock,
+      } = req.body;
+      const product_image = req.file ? req.file.filename : null;
+
+      const [result] = await pool.execute(
+        "UPDATE products SET product_name = ?, product_description = ?, product_price = ?, product_image = ?, product_stock = ? WHERE id_product = ?",
+        [
+          product_name,
+          product_description,
+          product_price,
+          product_image,
+          product_stock,
+          req.params.id,
+        ]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "No product found with that ID" });
+      }
+
+      return res.status(200).json({ message: "Product updated" });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+router.delete("/:id", verifyToken, async (req, res) => {
+  const [result] = await pool.execute(
+    "DELETE FROM products WHERE id_product = ?",
+    [req.params.id]
+  );
+
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ error: "No product found with that ID" });
+  }
+
+  res.status(202).json({ message: "Product deleted" });
+});
 
 export default router;

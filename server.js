@@ -1,11 +1,16 @@
 import express from "express";
+import cors from "cors";
 import productRoutes from "./api/routes/products.js";
 import loginRoutes from "./api/routes/auth.js";
-import verifyToken from "./api/middleware/verifyToken.js";
 
 const app = express();
 app.use(express.json());
-// app.use(verifyToken);
+app.use("/uploads", express.static("uploads"));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+  })
+);
 
 app.use("/api", loginRoutes);
 app.use("/api/products", productRoutes);
