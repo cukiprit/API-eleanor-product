@@ -33,14 +33,24 @@ const upload = multer({
 
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.execute("SELECT * FROM products");
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 5;
+    const offset = (page - 1) * pageSize;
+
+    const [rows] = await pool.execute(
+      `SELECT * FROM products LIMIT ${offset}, ${pageSize}`
+    );
+    const [totalRows] = await pool.execute(
+      "SELECT COUNT(*) AS total FROM products"
+    );
+    const total = totalRows[0].total;
 
     const products = rows.map((product) => ({
       ...product,
       product_image: `http://localhost:3000/uploads/${product.product_image}`,
     }));
 
-    return res.status(200).json({ products });
+    return res.status(200).json({ products, total });
   } catch (error) {
     console.error(error.message);
     return res.status(500).json({ error: error.message });
