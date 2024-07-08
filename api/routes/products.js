@@ -31,6 +31,23 @@ const upload = multer({
   },
 });
 
+const getExistingImageFilename = async (id) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT product_image FROM products WHERE id_product = ?",
+      [id]
+    );
+
+    if (rows.length > 0) {
+      return rows[0].product_image;
+    } else {
+      return null;
+    }
+  } catch (err) {
+    throw err;
+  }
+};
+
 router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.execute("SELECT * FROM products");
@@ -141,13 +158,18 @@ router.put(
       } = req.body;
       const product_image = req.file ? req.file.filename : null;
 
+      const existingImageFilename = await getExistingImageFilename(
+        req.params.id
+      );
+      const finalImageFilename = product_image || existingImageFilename;
+
       const [result] = await pool.execute(
         "UPDATE products SET product_name = ?, product_description = ?, product_price = ?, product_image = ?, product_stock = ? WHERE id_product = ?",
         [
           product_name,
           product_description,
           product_price,
-          product_image,
+          finalImageFilename,
           product_stock,
           req.params.id,
         ]
